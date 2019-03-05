@@ -7,6 +7,7 @@ import json
 import logging
 import time
 
+
 class Entry:
 
     def __init__(self, code, id, title, cif_file_url):
@@ -89,11 +90,17 @@ def read_jsonfile(code):
 
 def main():
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG,
+                        filename='log/get_sasdbd_entries.log',
+                        format='%(asctime)s %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S')
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    logging.getLogger('').addHandler(console)
 
     list_all_codes = get_list_all_codes()
 
-    for code in list_all_codes[0:1]:
+    for code in list_all_codes:
         logging.info('---------------------------------------')
         logging.info('Starting acquiring data for {} from the SASBDB'.format(code))
         download_summary(code)
