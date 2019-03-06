@@ -131,8 +131,8 @@ def download_ciffile(code):
 
     logging.info('Downloading the SAS CIF file for {}'.format(code))
     request_data = make_request(url)
-    request_data.encoding = 'utf-8'
     if request_data is not None:
+        request_data.encoding = 'utf-8'
         with open('data/{}.sascif'.format(code), 'w') as outfile:
             logging.info('Saving the SAS CIF file for {} in the data folder - {}.sascif'.format(code, code))
             outfile.write(request_data.text)
