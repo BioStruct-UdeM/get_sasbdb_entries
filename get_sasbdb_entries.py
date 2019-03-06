@@ -6,6 +6,9 @@ import requests
 import json
 import logging
 import time
+import yaml
+import os
+import logging.config
 
 
 class Entry:
@@ -17,6 +20,20 @@ class Entry:
         self.cif_file_url = cif_file_url
 
 
+def setup_logging(default_path='logging.yml', default_level=logging.DEBUG, env_key='LOG_CFG'):
+
+    path = default_path
+    value = os.getenv(env_key, None)
+    if value:
+        path = value
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            config = yaml.safe_load(f.read())
+        logging.config.dictConfig(config)
+    else:
+        logging.basicConfig(level=default_level)
+
+
 def make_request(url):
 
     logging.info('Making the request to {}'.format(url))
@@ -25,13 +42,13 @@ def make_request(url):
         logging.info('GET request succesfully done')
         return request_data
     elif request_data.status_code == 404:
-        logging.critical('GET request could not reach the address {}'.format(url))
+        logging.error('GET request could not reach the address {}'.format(url))
         request_data = None
         return request_data
     else:
-        logging.critical('Error reaching the address {}'.format(url))
-        logging.critical('Check the log file to figure out what might have gone bad')
-        logging.critical('The program will now exit')
+        logging.error('Error reaching the address {}'.format(url))
+        logging.error('Check the log file to figure out what might have gone bad')
+        logging.error('The program will now exit')
         raise SystemExit('Error making the request. Check the log file to figure out what might have gone bad')
 
 
@@ -51,6 +68,17 @@ def get_list_all_codes():
     return list_all_codes
 
 
+def save_list_codes(list_all_codes):
+
+    list_code_file = 'data/list_SASBDB_codes.txt'
+    logging.info('Saving the list of SASBDB codes in {}'.format(list_code_file))
+
+    with open(list_code_file, 'w') as outfile:
+        outfile.write('List of SASBDB codes as of {}\n'.format(time.strftime('%Y-%m-%d %H:%M:%S %z')))
+        for code in list_all_codes:
+            outfile.write(code + '\n')
+
+
 def download_summary(code):
 
     base_url_summary = 'https://www.sasbdb.org/rest-api/entry/summary/' # just add the SASDE48 name
@@ -64,6 +92,7 @@ def download_summary(code):
             json.dump(request_data.json(), jsonfile, indent=4, ensure_ascii=False)
     else:
         logging.warning('No sumary file available for {}'.format(code))
+
 
 def download_datfile(code):
 
@@ -102,6 +131,7 @@ def download_ciffile(code):
 
     logging.info('Downloading the SAS CIF file for {}'.format(code))
     request_data = make_request(url)
+    request_data.encoding = 'utf-8'
     if request_data is not None:
         with open('data/{}.sascif'.format(code), 'w') as outfile:
             logging.info('Saving the SAS CIF file for {} in the data folder - {}.sascif'.format(code, code))
@@ -119,34 +149,25 @@ def read_jsonfile(code):
 
 def download_all_data(code):
 
-    logging.info('---------------------------------------')
     logging.info('Starting acquiring data for {} from the SASBDB'.format(code))
     download_summary(code)
     download_datfile(code)
     download_outfile(code)
     download_ciffile(code)
     logging.info('Done for {}'.format(code))
-    time.sleep(5)
+    logging.info('---------------------------------------')
+    time.sleep(2)
 
 
 def main():
 
-    logging.basicConfig(level=logging.DEBUG,
-                        filename='log/get_sasdbd_entries.log',
-                        format='%(asctime)s %(message)s',
-                        datefmt='%m/%d/%Y %H:%M:%S')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    logging.getLogger('').addHandler(console)
+    setup_logging()
 
     list_all_codes = get_list_all_codes()
+    save_list_codes(list_all_codes)
 
     for code in list_all_codes:
-        logging.info('---------------------------------------')
-        logging.info('Starting acquiring data for {} from the SASBDB'.format(code))
-        download_ciffile(code)
-        logging.info('Done for {}'.format(code))
-        time.sleep(5)
+        download_all_data(code)
 
 
 if __name__ == '__main__':
