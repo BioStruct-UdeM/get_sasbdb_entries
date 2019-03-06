@@ -24,9 +24,15 @@ def make_request(url):
     if request_data.status_code == 200:
         logging.info('GET request succesfully done')
         return request_data
+    elif request_data.status_code == 404:
+        logging.critical('GET request could not reach the address {}'.format(url))
+        request_data = None
+        return request_data
     else:
         logging.critical('Error reaching the address {}'.format(url))
+        logging.critical('Check the log file to figure out what might have gone bad')
         logging.critical('The program will now exit')
+        raise SystemExit('Error making the request. Check the log file to figure out what might have gone bad')
 
 
 def get_list_all_codes():
@@ -52,10 +58,12 @@ def download_summary(code):
 
     logging.info('Downloading the summary information for {}'.format(code))
     request_data = make_request(url)
-    with open('data/{}_summary.json'.format(code), 'w') as jsonfile:
-        logging.info('Saving the summary file for {} in the data folder - {}_summary.json'.format(code, code))
-        json.dump(request_data.json(), jsonfile, indent=4, ensure_ascii=False)
-
+    if request_data is not None:
+        with open('data/{}_summary.json'.format(code), 'w') as jsonfile:
+            logging.info('Saving the summary file for {} in the data folder - {}_summary.json'.format(code, code))
+            json.dump(request_data.json(), jsonfile, indent=4, ensure_ascii=False)
+    else:
+        logging.warning('No sumary file available for {}'.format(code))
 
 def download_datfile(code):
 
@@ -64,9 +72,12 @@ def download_datfile(code):
 
     logging.info('Downloading the summary information for {}'.format(code))
     request_data = make_request(url)
-    with open('data/{}.dat'.format(code), 'w') as datfile:
-        logging.info('Saving the .dat file for {} in the data folder - {}.dat'.format(code, code))
-        datfile.write(request_data.text)
+    if request_data is not None:
+        with open('data/{}.dat'.format(code), 'w') as datfile:
+            logging.info('Saving the .dat file for {} in the data folder - {}.dat'.format(code, code))
+            datfile.write(request_data.text)
+    else:
+        logging.warning('No .dat file available for {}'.format(code))
 
 
 def download_outfile(code):
@@ -76,9 +87,27 @@ def download_outfile(code):
 
     logging.info('Downloading the real space information for {}'.format(code))
     request_data = make_request(url)
-    with open('data/{}.out'.format(code), 'w') as outfile:
-        logging.info('Saving the real space file for {} in the data folder - {}.out'.format(code, code))
-        outfile.write(request_data.text)
+    if request_data is not None:
+        with open('data/{}.out'.format(code), 'w') as outfile:
+            logging.info('Saving the real space file for {} in the data folder - {}.out'.format(code, code))
+            outfile.write(request_data.text)
+    else:
+        logging.warning('No real space file available for {}'.format(code))
+
+
+def download_ciffile(code):
+
+    base_url_outfiles = 'https://www.sasbdb.org/media/sascif/sascif_files/' # just add the SASDE48.sascif name
+    url = base_url_outfiles + code + '.sascif'
+
+    logging.info('Downloading the SAS CIF file for {}'.format(code))
+    request_data = make_request(url)
+    if request_data is not None:
+        with open('data/{}.sascif'.format(code), 'w') as outfile:
+            logging.info('Saving the SAS CIF file for {} in the data folder - {}.sascif'.format(code, code))
+            outfile.write(request_data.text)
+    else:
+        logging.warning('No SAS CIF file available for {}'.format(code))
 
 
 def read_jsonfile(code):
@@ -86,6 +115,18 @@ def read_jsonfile(code):
     with open('data/{}_summary.json'.format(code), 'r') as jsonfile:
         data = json.load(jsonfile)
         print(data['guinier_rg'])
+
+
+def download_all_data(code):
+
+    logging.info('---------------------------------------')
+    logging.info('Starting acquiring data for {} from the SASBDB'.format(code))
+    download_summary(code)
+    download_datfile(code)
+    download_outfile(code)
+    download_ciffile(code)
+    logging.info('Done for {}'.format(code))
+    time.sleep(5)
 
 
 def main():
@@ -103,15 +144,10 @@ def main():
     for code in list_all_codes:
         logging.info('---------------------------------------')
         logging.info('Starting acquiring data for {} from the SASBDB'.format(code))
-        download_summary(code)
-        download_datfile(code)
-        download_outfile(code)
+        download_ciffile(code)
         logging.info('Done for {}'.format(code))
         time.sleep(5)
 
 
 if __name__ == '__main__':
     main()
-
-    base_url = 'https://www.sasbdb.org/data/' # just add the SASDE48 name
-    base_url_zipfiles = 'https://www.sasbdb.org/media/zip_directories/' # just add the SASDE48.zip name
